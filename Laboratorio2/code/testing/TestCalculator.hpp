@@ -1,9 +1,23 @@
-#include "TestCalculator.h"
+#pragma once
+#include "../controller/Calculator.hpp"
 #include <iostream>
 #include <cmath>
 #include <cassert>
+#include <string>
 
-bool TestCalculator::testExpression(const Calculator &calc, const std::string &expr, double expected, const std::string &testName)
+class TestCalculator
+{
+public:
+  static void runTests();
+
+private:
+  static bool testExpression(const Calculator &calc, const std::string &expr, double expected, const std::string &testName);
+  static bool testInvalidExpression(const Calculator &calc, const std::string &expr, const std::string &testName);
+};
+
+// ================== IMPLEMENTACIÓN ==================
+
+inline bool TestCalculator::testExpression(const Calculator &calc, const std::string &expr, double expected, const std::string &testName)
 {
   Calculator tempCalc = calc;
   double result = tempCalc.compute(expr);
@@ -18,7 +32,7 @@ bool TestCalculator::testExpression(const Calculator &calc, const std::string &e
   return passed;
 }
 
-bool TestCalculator::testInvalidExpression(const Calculator &calc, const std::string &expr, const std::string &testName)
+inline bool TestCalculator::testInvalidExpression(const Calculator &calc, const std::string &expr, const std::string &testName)
 {
   Calculator tempCalc = calc;
   double result = tempCalc.compute(expr);
@@ -33,7 +47,7 @@ bool TestCalculator::testInvalidExpression(const Calculator &calc, const std::st
   return passed;
 }
 
-void TestCalculator::runTests()
+inline void TestCalculator::runTests()
 {
   Calculator calc;
   int passed = 0, total = 0;
