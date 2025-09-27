@@ -1,6 +1,8 @@
 #include "../include/Service.hpp"
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
+#include <cctype>
 
 Service::Service()
 {
@@ -16,49 +18,57 @@ void Service::registrarAlumno(const std::string &codigo, int grado, const std::s
 {
   if (!codigoAlumnoUnico(codigo))
   {
-    std::cout << "Codigo de alumno ya existe." << std::endl;
+    std::cout << "Error: El codigo de alumno ya existe." << std::endl;
     return;
   }
   if (!gradoValido(grado))
   {
-    std::cout << "Grado invalido. Debe ser entre 1 y 6." << std::endl;
+    std::cout << "Error: Grado invalido. Debe ser entre 1 y 6." << std::endl;
     return;
   }
   auto alumno = std::make_shared<Alumno>(codigo, grado, nombres, apellidos);
   alumnos.push_back(alumno);
-  std::cout << "Alumno registrado exitosamente." << std::endl;
+  std::cout << "Alumno registrado exitosamente: " << nombres << " " << apellidos << std::endl;
 }
 
 void Service::registrarProfesor(const std::string &nombres, const std::string &apellidos)
 {
   auto profesor = std::make_shared<Profesor>(nombres, apellidos);
   profesores.push_back(profesor);
-  std::cout << "Profesor registrado exitosamente." << std::endl;
+  std::cout << "Profesor registrado exitosamente: " << nombres << " " << apellidos << std::endl;
 }
 
-void Service::registrarTarea(const std::string &codigoAlumno, const std::string &curso, const std::string &nombreProfesor, const std::string &fecha, bool entregada)
+void Service::registrarTarea(const std::string &codigoAlumno, const std::string &curso, const std::string &profesorNombres, const std::string &profesorApellidos, const std::string &fecha, bool entregada)
 {
-  size_t spacePos = nombreProfesor.find(' ');
-  std::string nombres = nombreProfesor.substr(0, spacePos);
-  std::string apellidos = nombreProfesor.substr(spacePos + 1);
-
-  if (!profesorExiste(nombres, apellidos))
+  if (!profesorExiste(profesorNombres, profesorApellidos))
   {
-    std::cout << "Profesor no existe." << std::endl;
+    std::cout << "Error: Profesor '" << profesorNombres << " " << profesorApellidos << "' no existe." << std::endl;
     return;
   }
-  auto prof = buscarProfesorPorNombre(nombres, apellidos);
+  auto prof = buscarProfesorPorNombre(profesorNombres, profesorApellidos);
   auto alumno = buscarAlumnoPorCodigo(codigoAlumno);
   if (!alumno)
   {
-    std::cout << "Alumno no existe." << std::endl;
+    std::cout << "Error: Alumno con codigo '" << codigoAlumno << "' no existe." << std::endl;
     return;
   }
   auto tarea = std::make_shared<Tarea>(curso, prof, fecha, entregada);
   alumno->agregarTarea(tarea);
-  prof->agregarAlumno(alumno);
+  bool alumnoExists = false;
+  for (const auto &a : prof->getAlumnos())
+  {
+    if (a->getCodigo() == alumno->getCodigo())
+    {
+      alumnoExists = true;
+      break;
+    }
+  }
+  if (!alumnoExists)
+  {
+    prof->agregarAlumno(alumno);
+  }
   tareas.push_back(tarea);
-  std::cout << "Tarea registrada exitosamente." << std::endl;
+  std::cout << "Tarea registrada exitosamente para el curso " << curso << "." << std::endl;
 }
 
 std::shared_ptr<Alumno> Service::buscarAlumnoPorCodigo(const std::string &codigo) const
@@ -75,9 +85,23 @@ std::shared_ptr<Alumno> Service::buscarAlumnoPorCodigo(const std::string &codigo
 
 std::shared_ptr<Profesor> Service::buscarProfesorPorNombre(const std::string &nombres, const std::string &apellidos) const
 {
+  std::string nombresLower = nombres;
+  std::string apellidosLower = apellidos;
+  std::transform(nombresLower.begin(), nombresLower.end(), nombresLower.begin(), [](unsigned char c)
+                 { return std::tolower(c); });
+  std::transform(apellidosLower.begin(), apellidosLower.end(), apellidosLower.begin(), [](unsigned char c)
+                 { return std::tolower(c); });
+
   for (const auto &prof : profesores)
   {
-    if (prof->getNombres() == nombres && prof->getApellidos() == apellidos)
+    std::string profNombresLower = prof->getNombres();
+    std::string profApellidosLower = prof->getApellidos();
+    std::transform(profNombresLower.begin(), profNombresLower.end(), profNombresLower.begin(), [](unsigned char c)
+                   { return std::tolower(c); });
+    std::transform(profApellidosLower.begin(), profApellidosLower.end(), profApellidosLower.begin(), [](unsigned char c)
+                   { return std::tolower(c); });
+
+    if (profNombresLower == nombresLower && profApellidosLower == apellidosLower)
     {
       return prof;
     }
@@ -103,48 +127,152 @@ void Service::consultarTareasAlumno(const std::string &codigo)
   auto alumno = buscarAlumnoPorCodigo(codigo);
   if (!alumno)
   {
-    std::cout << "Alumno no encontrado." << std::endl;
+    std::cout << "Error: Alumno con codigo '" << codigo << "' no encontrado." << std::endl;
     return;
   }
-  std::cout << "Tareas de " << alumno->getNombres() << " " << alumno->getApellidos() << ":" << std::endl;
-  for (const auto &tarea : alumno->getTareas())
+  std::cout << "\nTareas de " << alumno->getNombres() << " " << alumno->getApellidos() << " (Codigo: " << codigo << "):" << std::endl;
+  std::cout << "----------------------------------------" << std::endl;
+  if (alumno->getTareas().empty())
   {
-    std::cout << "- Curso: " << tarea->getCurso() << ", Fecha: " << tarea->getFecha() << ", Entregada: " << (tarea->isEntregada() ? "Si" : "No") << std::endl;
+    std::cout << "No hay tareas asignadas." << std::endl;
   }
+  else
+  {
+    for (const auto &tarea : alumno->getTareas())
+    {
+      std::cout << "Curso: " << tarea->getCurso()
+                << ", Fecha: " << tarea->getFecha()
+                << ", Entregada: " << (tarea->isEntregada() ? "Si" : "No") << std::endl;
+    }
+  }
+  std::cout << "----------------------------------------" << std::endl;
 }
 
 void Service::consultarAlumnosProfesor(const std::string &nombreProfesor)
 {
-  size_t spacePos = nombreProfesor.find(' ');
-  std::string nombres = nombreProfesor.substr(0, spacePos);
-  std::string apellidos = nombreProfesor.substr(spacePos + 1);
+  std::string trimmedNombreProfesor = nombreProfesor;
+  trimmedNombreProfesor.erase(trimmedNombreProfesor.begin(), std::find_if(trimmedNombreProfesor.begin(), trimmedNombreProfesor.end(), [](unsigned char c)
+                                                                          { return !std::isspace(c); }));
+  trimmedNombreProfesor.erase(std::find_if(trimmedNombreProfesor.rbegin(), trimmedNombreProfesor.rend(), [](unsigned char c)
+                                           { return !std::isspace(c); })
+                                  .base(),
+                              trimmedNombreProfesor.end());
+
+  size_t lastSpace = trimmedNombreProfesor.rfind(' ');
+  if (lastSpace == std::string::npos)
+  {
+    std::cout << "Error: Formato de nombre de profesor invalido. Use 'nombres apellidos'." << std::endl;
+    return;
+  }
+  std::string nombres = trimmedNombreProfesor.substr(0, lastSpace);
+  std::string apellidos = trimmedNombreProfesor.substr(lastSpace + 1);
+
   auto prof = buscarProfesorPorNombre(nombres, apellidos);
   if (!prof)
   {
-    std::cout << "Profesor no encontrado." << std::endl;
+    std::cout << "Error: Profesor '" << nombres << " " << apellidos << "' no encontrado." << std::endl;
     return;
   }
-  std::cout << "Alumnos de " << prof->getNombres() << " " << prof->getApellidos() << ":" << std::endl;
-  for (const auto &alumno : prof->getAlumnos())
+  std::cout << "\nAlumnos de " << prof->getNombres() << " " << prof->getApellidos() << ":" << std::endl;
+  std::cout << "----------------------------------------" << std::endl;
+  if (prof->getAlumnos().empty())
   {
-    std::cout << "- " << alumno->getNombres() << " " << alumno->getApellidos() << " (Codigo: " << alumno->getCodigo() << ")" << std::endl;
+    std::cout << "No hay alumnos asignados." << std::endl;
   }
+  else
+  {
+    for (const auto &alumno : prof->getAlumnos())
+    {
+      std::cout << "Codigo: " << alumno->getCodigo() << ", Nombre: " << alumno->getNombres() << " " << alumno->getApellidos() << std::endl;
+    }
+  }
+  std::cout << "----------------------------------------" << std::endl;
 }
 
 void Service::generarReportes()
 {
-  std::cout << "Reportes:" << std::endl;
-  for (const auto &alumno : alumnos)
+  std::cout << "\nReportes:" << std::endl;
+  std::cout << "----------------------------------------" << std::endl;
+  std::cout << "Tareas por alumno:" << std::endl;
+  if (alumnos.empty())
   {
-    int entregadas = alumno->contarTareasEntregadas();
-    int total = alumno->contarTareasTotales();
-    double porcentaje = total > 0 ? (static_cast<double>(entregadas) / total) * 100 : 0;
-    std::cout << "Alumno " << alumno->getNombres() << " " << alumno->getApellidos() << ": " << entregadas << " tareas entregadas, " << std::fixed << std::setprecision(2) << porcentaje << "%" << std::endl;
+    std::cout << "No hay alumnos registrados." << std::endl;
   }
-  for (const auto &prof : profesores)
+  else
   {
-    std::cout << "Profesor " << prof->getNombres() << " " << prof->getApellidos() << ": " << prof->contarAlumnos() << " alumnos" << std::endl;
+    for (const auto &alumno : alumnos)
+    {
+      int entregadas = alumno->contarTareasEntregadas();
+      int total = alumno->contarTareasTotales();
+      double porcentaje = total > 0 ? (static_cast<double>(entregadas) / total) * 100 : 0;
+      std::cout << "Alumno: " << alumno->getNombres() << " " << alumno->getApellidos()
+                << ", Codigo: " << alumno->getCodigo()
+                << ", Tareas entregadas: " << entregadas << "/" << total
+                << ", Porcentaje: " << std::fixed << std::setprecision(2) << porcentaje << "%" << std::endl;
+    }
   }
+  std::cout << "\nAlumnos por profesor:" << std::endl;
+  if (profesores.empty())
+  {
+    std::cout << "No hay profesores registrados." << std::endl;
+  }
+  else
+  {
+    for (const auto &prof : profesores)
+    {
+      std::cout << "Profesor: " << prof->getNombres() << " " << prof->getApellidos()
+                << ", Alumnos a cargo: " << prof->contarAlumnos() << std::endl;
+    }
+  }
+  std::cout << "----------------------------------------" << std::endl;
+}
+
+void Service::listarAlumnos() const
+{
+  std::cout << "\nLista de Alumnos:" << std::endl;
+  std::cout << "----------------------------------------" << std::endl;
+  if (alumnos.empty())
+  {
+    std::cout << "No hay alumnos registrados." << std::endl;
+  }
+  else
+  {
+    for (size_t i = 0; i < alumnos.size(); ++i)
+    {
+      std::cout << "ID: " << i + 1 << ", Codigo: " << alumnos[i]->getCodigo()
+                << ", Nombre: " << alumnos[i]->getNombres() << " " << alumnos[i]->getApellidos()
+                << ", Grado: " << alumnos[i]->getGrado() << std::endl;
+    }
+  }
+  std::cout << "----------------------------------------" << std::endl;
+}
+
+void Service::listarProfesores() const
+{
+  std::cout << "\nLista de Profesores:" << std::endl;
+  std::cout << "----------------------------------------" << std::endl;
+  if (profesores.empty())
+  {
+    std::cout << "No hay profesores registrados." << std::endl;
+  }
+  else
+  {
+    for (size_t i = 0; i < profesores.size(); ++i)
+    {
+      std::cout << "ID: " << i + 1 << ", Nombre: " << profesores[i]->getNombres() << " " << profesores[i]->getApellidos() << std::endl;
+    }
+  }
+  std::cout << "----------------------------------------" << std::endl;
+}
+
+const std::vector<std::shared_ptr<Alumno>> &Service::getAlumnos() const
+{
+  return alumnos;
+}
+
+const std::vector<std::shared_ptr<Profesor>> &Service::getProfesores() const
+{
+  return profesores;
 }
 
 void Service::cargarDatos()

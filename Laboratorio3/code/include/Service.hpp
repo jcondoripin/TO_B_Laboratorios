@@ -17,7 +17,8 @@ public:
 
   void registrarAlumno(const std::string &codigo, int grado, const std::string &nombres, const std::string &apellidos);
   void registrarProfesor(const std::string &nombres, const std::string &apellidos);
-  void registrarTarea(const std::string &codigoAlumno, const std::string &curso, const std::string &nombreProfesor, const std::string &fecha, bool entregada);
+  // Modificado para aceptar nombres y apellidos separados
+  void registrarTarea(const std::string &codigoAlumno, const std::string &curso, const std::string &profesorNombres, const std::string &profesorApellidos, const std::string &fecha, bool entregada);
 
   std::shared_ptr<Alumno> buscarAlumnoPorCodigo(const std::string &codigo) const;
   std::shared_ptr<Profesor> buscarProfesorPorNombre(const std::string &nombres, const std::string &apellidos) const;
@@ -26,6 +27,12 @@ public:
   void consultarTareasAlumno(const std::string &codigo);
   void consultarAlumnosProfesor(const std::string &nombreProfesor);
   void generarReportes();
+
+  void listarAlumnos() const;
+  void listarProfesores() const;
+
+  const std::vector<std::shared_ptr<Alumno>> &getAlumnos() const;
+  const std::vector<std::shared_ptr<Profesor>> &getProfesores() const;
 
   void cargarDatos();
   void guardarDatos();
