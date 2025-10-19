@@ -2,6 +2,7 @@
 *.out
 *.zip
 *.pdf
+*.docx
 *.txt
 .vscode
 
