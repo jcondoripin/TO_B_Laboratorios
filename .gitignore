@@ -4,6 +4,8 @@
 *.pdf
 *.docx
 *.txt
+*.class
+*.log
 .vscode
 
 build/
